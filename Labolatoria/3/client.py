@@ -1,52 +1,43 @@
 import os
-import multiprocessing
+import re
 
-# Function to count occurrences of a word in a text
-def count_word_occurrences(filename, word):
-    with open(filename, 'r') as file:
-        text = file.read()
-    return text.count(word)
+total_occurrences = 0
 
-# Function to process a file and its included files
+def count_word_occurrences(text, word):
+    # Case-insensitive regex for finding words
+    pattern = re.compile(r'\b{}\b'.format(re.escape(word)), re.IGNORECASE)
+    occurrences = len(pattern.findall(text))
+    return occurrences
+
 def process_file(filename, word):
-    total_occurrences = 0
-
-    def search_included_files(filename, word):
-        nonlocal total_occurrences
-        with open(filename, 'r') as file:
-            for line in file:
-                if line.strip().startswith("\\input{"):
-                    included_filename = line.strip()[7:-1]
-                    pid = os.fork()
-                    if pid == 0:
-                        with open(included_filename, 'r') as file:
-                            total_occurrences += count_word_occurrences(file, word)
-                            os._exit(0)
-                    else:
-                        os.waitpid(pid, 0)
-
+    global total_occurrences
+    with open(filename, 'r') as file:
+        for line in file:
+            if line.strip().startswith("\\input{"):
+                included_filename = line.strip()[7:-1]
+                pid = os.fork()
+                if pid == 0:
+                    with open(included_filename, 'r') as included_file:
+                        print('Enter file')
+                        text = included_file.read()
+                    occurrences = count_word_occurrences(text, word)
+                    total_occurrences += occurrences
+                    os._exit(occurrences)
                 else:
-                    total_occurrences += line.count(word)
-
-    search_included_files(filename, word)
+                    process_file(included_filename, word)
+                    # Wait so the result is in proper order (print not happening too early)
+                    _, status = os.wait()
+            else:
+                total_occurrences += count_word_occurrences(line, word)
 
     return total_occurrences
 
-def main(p, s):
-    # Create a multiprocessing pool
-    pool = multiprocessing.Pool()
-
-    # Count occurrences in the main file and its included files
-    total_occurrences = process_file(p, s)
-
-    # Close the pool
-    pool.close()
-    pool.join()
-
-    print(f"Total occurrences of '{s}' in '{p}' and included files: {total_occurrences}")
+def main(filename, word):
+    total_occurrences = process_file(filename, word)
+    print(f"Total occurrences of '{word}' in '{filename}' and included files: {total_occurrences}")
 
 if __name__ == '__main__':
-    p = "plikA.txt"  # Replace with the actual file name
-    s = "Stoi"  # Replace with the word you want to count
+    filename = "plikA.txt"
+    word = "z"
 
-    main(p, s)
+    main(filename, word)
