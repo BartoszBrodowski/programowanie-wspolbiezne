@@ -16,6 +16,7 @@ def process_file(filename, word):
             if line.strip().startswith("\\input{"):
                 included_filename = line.strip()[7:-1]
                 pid = os.fork()
+                # Child process
                 if pid == 0:
                     with open(included_filename, 'r') as included_file:
                         print('Enter file')
@@ -23,6 +24,7 @@ def process_file(filename, word):
                     occurrences = count_word_occurrences(text, word)
                     total_occurrences += occurrences
                     os._exit(occurrences)
+                # Parent process
                 else:
                     process_file(included_filename, word)
                     # Wait so the result is in proper order (print not happening too early)
@@ -38,6 +40,6 @@ def main(filename, word):
 
 if __name__ == '__main__':
     filename = "plikA.txt"
-    word = "z"
+    word = "brzucha"
 
     main(filename, word)
