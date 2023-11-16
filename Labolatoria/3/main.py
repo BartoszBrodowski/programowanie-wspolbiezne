@@ -1,7 +1,6 @@
 import os
 import re
 
-total_occurrences = 0
 
 def count_word_occurrences(text, word):
     # Case-insensitive regex for finding words
@@ -9,37 +8,29 @@ def count_word_occurrences(text, word):
     occurrences = len(pattern.findall(text))
     return occurrences
 
-def process_file(filename, word):
-    global total_occurrences
-    with open(filename, 'r') as file:
-        for line in file:
+def count(file_name, word, files_to_check, iteration_number):
+    sum = 0
+    iteration_number += 1
+    with open(file_name, "r") as f:
+        text = f.read()
+        for line in text.split("\n"):
             if line.strip().startswith("\\input{"):
-                included_filename = line.strip()[7:-1]
-                pid = os.fork()
-                # Child process
-                if pid == 0:
-                    with open(included_filename, 'r') as included_file:
-                        print('Enter file')
-                        text = included_file.read()
-                    occurrences = count_word_occurrences(text, word)
-                    total_occurrences += occurrences
-                    os._exit(occurrences)
-                # Parent process
-                else:
-                    process_file(included_filename, word)
-                    # Wait so the result is in proper order (print not happening too early)
-                    _, status = os.wait()
-            else:
-                total_occurrences += count_word_occurrences(line, word)
+                files_to_check.append(line[7:-1])
+                continue
+            sum += count_word_occurrences(line, word)
+        # Check if have to go deeper
+        if len(files_to_check) == iteration_number:
+            return sum
+    pid = os.fork()
 
-    return total_occurrences
+    if pid > 0:
+        # Parent process
+        status = os.wait()
+        if os.WIFEXITED(status[1]):
+            return sum + os.WEXITSTATUS(status[1])
+    else:
+        # Child process
+        os._exit(count(files_to_check[iteration_number], word, files_to_check, iteration_number))
 
-def main(filename, word):
-    total_occurrences = process_file(filename, word)
-    print(f"Total occurrences of '{word}' in '{filename}' and included files: {total_occurrences}")
-
-if __name__ == '__main__':
-    filename = "plikA.txt"
-    word = "brzucha"
-
-    main(filename, word)
+word = 'i'
+print(f"Ilość wystąpień słowa '{word}':", count("plikA.txt", word, [], -1))
